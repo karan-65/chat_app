@@ -1,58 +1,62 @@
 import 'dart:developer';
 
-import 'package:chat_app/main.dart';
 import 'package:chat_app/modals/chatroom_modal.dart';
-import 'package:chat_app/modals/message_modal.dart';
-import 'package:chat_app/modals/user_modal.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../modals/chatroom_modal.dart';
+import '../main.dart';
+import '../modals/message_modal.dart';
+import '../modals/user_modal.dart';
 
-class chatroompage extends StatefulWidget {
-  final usermodal Usermodal;
-  final User Firebaseuser;
-  final usermodal targetuser;
-  final chatroom Chatroom;
+class ChatRoomPage extends StatefulWidget {
+  final UserModel targetUser;
+  final ChatRoomModel chatroom;
+  final UserModel userModel;
+  final User firebaseUser;
 
-  const chatroompage(
-      {super.key,
-      required this.Usermodal,
-      required this.Firebaseuser,
-      required this.targetuser,
-      required this.Chatroom});
+  const ChatRoomPage(
+      {Key? key,
+      required this.targetUser,
+      required this.chatroom,
+      required this.userModel,
+      required this.firebaseUser})
+      : super(key: key);
 
   @override
-  State<chatroompage> createState() => _chatroomState();
+  _ChatRoomPageState createState() => _ChatRoomPageState();
 }
 
-class _chatroomState extends State<chatroompage> {
-  TextEditingController messagecontroller = TextEditingController();
+class _ChatRoomPageState extends State<ChatRoomPage> {
+  TextEditingController messageController = TextEditingController();
 
-  void sendmessage() async {
-    String msg = messagecontroller.text.trim();
-    messagecontroller.clear();
-    if (msg != " ") {
-      messagmodal newmessage = messagmodal(
+  void sendMessage() async {
+    String msg = messageController.text.trim();
+    messageController.clear();
+
+    if (msg != "") {
+      // Send Message
+      MessageModel newMessage = MessageModel(
           messageid: uuid.v1(),
-          sender: widget.Usermodal.uid,
+          sender: widget.userModel.uid,
           createdon: DateTime.now(),
           text: msg,
           seen: false);
-      FirebaseFirestore.instance
-          .collection("chatrooms")
-          .doc(widget.Chatroom.chatroomid)
-          .collection("messages")
-          .doc(newmessage.messageid)
-          .set(newmessage.toMap());
-      widget.Chatroom.lastmessage = msg;
-      FirebaseFirestore.instance
-          .collection("chatrooms")
-          .doc(widget.Chatroom.chatroomid)
-          .set(widget.Chatroom.toMap());
 
-      log("message sent");
+      FirebaseFirestore.instance
+          .collection("chatrooms")
+          .doc(widget.chatroom.chatroomid)
+          .collection("messages")
+          .doc(newMessage.messageid)
+          .set(newMessage.toMap());
+
+      widget.chatroom.lastMessage = msg;
+      FirebaseFirestore.instance
+          .collection("chatrooms")
+          .doc(widget.chatroom.chatroomid)
+          .set(widget.chatroom.toMap());
+
+      log("Message Sent!");
     }
   }
 
@@ -60,109 +64,132 @@ class _chatroomState extends State<chatroompage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Row(children: [
-          CircleAvatar(
-            backgroundImage:
-                NetworkImage(widget.targetuser.profilepic.toString()),
-          ),
-          SizedBox(
-            width: 10,
-          ),
-          Text(widget.targetuser.fullname.toString())
-        ]),
+        title: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: Colors.grey[300],
+              backgroundImage:
+                  NetworkImage(widget.targetUser.profilepic.toString()),
+            ),
+            SizedBox(
+              width: 10,
+            ),
+            Text(widget.targetUser.fullname.toString()),
+          ],
+        ),
       ),
       body: SafeArea(
-          child: Container(
-        child: Column(children: [
-          Expanded(
-              child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 10),
-            child: StreamBuilder(
-              stream: FirebaseFirestore.instance
-                  .collection("chatrooms")
-                  .doc(widget.Chatroom.chatroomid)
-                  .collection("messages")
-                  .orderBy("createdon", descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.active) {
-                  if (snapshot.hasData) {
-                    QuerySnapshot datasapshot = snapshot.data as QuerySnapshot;
+        child: Container(
+          child: Column(
+            children: [
+              // This is where the chats will go
+              Expanded(
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: StreamBuilder(
+                    stream: FirebaseFirestore.instance
+                        .collection("chatrooms")
+                        .doc(widget.chatroom.chatroomid)
+                        .collection("messages")
+                        .orderBy("createdon", descending: true)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.active) {
+                        if (snapshot.hasData) {
+                          QuerySnapshot dataSnapshot =
+                              snapshot.data as QuerySnapshot;
 
-                    return ListView.builder(
-                      reverse: true,
-                      itemBuilder: (context, index) {
-                        messagmodal currentmessage = messagmodal.fromMap(
-                            datasapshot.docs[index].data()
-                                as Map<String, dynamic>);
+                          return ListView.builder(
+                            reverse: true,
+                            itemCount: dataSnapshot.docs.length,
+                            itemBuilder: (context, index) {
+                              MessageModel currentMessage =
+                                  MessageModel.fromMap(dataSnapshot.docs[index]
+                                      .data() as Map<String, dynamic>);
 
-                        return Row(
-                          mainAxisAlignment:
-                              (currentmessage.sender == widget.Usermodal.uid)
-                                  ? MainAxisAlignment.end
-                                  : MainAxisAlignment.start,
-                          children: [
-                            Container(
-                                padding: EdgeInsets.symmetric(
-                                    vertical: 15, horizontal: 10),
-                                margin: EdgeInsets.symmetric(vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: (currentmessage.sender ==
-                                          widget.Usermodal.uid)
-                                      ? Colors.grey
-                                      : Theme.of(context).colorScheme.secondary,
-                                  borderRadius: BorderRadius.circular(5),
-                                ),
-                                child: Text(
-                                  currentmessage.text.toString(),
-                                  style: TextStyle(color: Colors.white),
-                                )),
-                          ],
+                              return Row(
+                                mainAxisAlignment: (currentMessage.sender ==
+                                        widget.userModel.uid)
+                                    ? MainAxisAlignment.end
+                                    : MainAxisAlignment.start,
+                                children: [
+                                  Container(
+                                      margin: EdgeInsets.symmetric(
+                                        vertical: 2,
+                                      ),
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 10,
+                                        horizontal: 10,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: (currentMessage.sender ==
+                                                widget.userModel.uid)
+                                            ? Colors.grey
+                                            : Theme.of(context)
+                                                .colorScheme
+                                                .secondary,
+                                        borderRadius: BorderRadius.circular(5),
+                                      ),
+                                      child: Text(
+                                        currentMessage.text.toString(),
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                        ),
+                                      )),
+                                ],
+                              );
+                            },
+                          );
+                        } else if (snapshot.hasError) {
+                          return Center(
+                            child: Text(
+                                "An error occured! Please check your internet connection."),
+                          );
+                        } else {
+                          return Center(
+                            child: Text("Say hi to your new friend"),
+                          );
+                        }
+                      } else {
+                        return Center(
+                          child: CircularProgressIndicator(),
                         );
-                      },
-                      itemCount: datasapshot.docs.length,
-                    );
-                  } else if (snapshot.hasError) {
-                    return Center(
-                      child: Text(
-                          "An error occured please check your internet connection"),
-                    );
-                  } else {
-                    return Center(
-                      child: Text("say hi to your new friend"),
-                    );
-                  }
-                } else {
-                  return Center(
-                    child: CircularProgressIndicator(),
-                  );
-                }
-              },
-            ),
-          )),
-          Container(
-            color: Colors.grey[300],
-            padding: EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-            child: Row(
-              children: [
-                Flexible(
-                    child: TextField(
-                  controller: messagecontroller,
-                  maxLines: null,
-                  decoration: InputDecoration(
-                      hintText: "Enter message", border: InputBorder.none),
-                )),
-                IconButton(
-                    onPressed: () {
-                      sendmessage();
+                      }
                     },
-                    icon: Icon(Icons.send,
-                        color: Theme.of(context).colorScheme.secondary))
-              ],
-            ),
-          )
-        ]),
-      )),
+                  ),
+                ),
+              ),
+
+              Container(
+                color: Colors.grey[200],
+                padding: EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: TextField(
+                        controller: messageController,
+                        maxLines: null,
+                        decoration: InputDecoration(
+                            border: InputBorder.none,
+                            hintText: "Enter message"),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        sendMessage();
+                      },
+                      icon: Icon(
+                        Icons.send,
+                        color: Theme.of(context).colorScheme.secondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

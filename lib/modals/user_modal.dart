@@ -1,13 +1,13 @@
-class usermodal {
+class UserModel {
   String? uid;
   String? fullname;
   String? email;
   String? profilepic;
 
-  usermodal({this.email, this.fullname, this.uid, this.profilepic});
+  UserModel({this.uid, this.fullname, this.email, this.profilepic});
 
-  usermodal.fromMap(Map<String, dynamic> map) {
-    uid = map["id"];
+  UserModel.fromMap(Map<String, dynamic> map) {
+    uid = map["uid"];
     fullname = map["fullname"];
     email = map["email"];
     profilepic = map["profilepic"];

@@ -1,66 +1,73 @@
-import 'package:chat_app/modals/user_modal.dart';
-import 'package:chat_app/pages/completeprofile.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class Signup extends StatefulWidget {
-  const Signup({Key? key}) : super(key: key);
+import '../modals/uihelper.dart';
+import '../modals/user_modal.dart';
+import 'completeprofile.dart';
+
+class SignUpPage extends StatefulWidget {
+  const SignUpPage({Key? key}) : super(key: key);
 
   @override
-  State<Signup> createState() => _SignupState();
+  _SignUpPageState createState() => _SignUpPageState();
 }
 
-class _SignupState extends State<Signup> {
-  TextEditingController emailcontroler = TextEditingController();
-  TextEditingController passwordcontroler = TextEditingController();
-  TextEditingController cpasswordcontroler = TextEditingController();
+class _SignUpPageState extends State<SignUpPage> {
+  TextEditingController emailController = TextEditingController();
+  TextEditingController passwordController = TextEditingController();
+  TextEditingController cPasswordController = TextEditingController();
 
-  void checkvalues() {
-    String email = emailcontroler.text.trim();
-    String password = passwordcontroler.text.trim();
-    String cpassword = cpasswordcontroler.text.trim();
+  void checkValues() {
+    String email = emailController.text.trim();
+    String password = passwordController.text.trim();
+    String cPassword = cPasswordController.text.trim();
 
-    if (email == "" || password == "" || cpassword == "") {
-      print("please fill all the details");
-    } else if (password != cpassword) {
-      print("paswords doesnt match");
+    if (email == "" || password == "" || cPassword == "") {
+      UIHelper.showAlertDialog(
+          context, "Incomplete Data", "Please fill all the fields");
+    } else if (password != cPassword) {
+      UIHelper.showAlertDialog(context, "Password Mismatch",
+          "The passwords you entered do not match!");
     } else {
-      Signup(email, password);
+      signUp(email, password);
     }
   }
 
-  void Signup(String email, String password) async {
-    UserCredential? credientals;
+  void signUp(String email, String password) async {
+    UserCredential? credential;
+
+    UIHelper.showLoadingDialog(context, "Creating new account..");
+
     try {
-      credientals = await FirebaseAuth.instance
+      credential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: password);
     } on FirebaseAuthException catch (ex) {
-      print(ex.code.toString());
+      Navigator.pop(context);
+
+      UIHelper.showAlertDialog(
+          context, "An error occured", ex.message.toString());
     }
-    if (credientals != null) {
-      String uid = credientals.user!.uid;
-      usermodal newuser = usermodal(
-        uid: uid,
-        email: email,
-        profilepic: "",
-        fullname: "",
-      );
+
+    if (credential != null) {
+      String uid = credential.user!.uid;
+      UserModel newUser =
+          UserModel(uid: uid, email: email, fullname: "", profilepic: "");
       await FirebaseFirestore.instance
           .collection("users")
           .doc(uid)
-          .set(newuser.toMap())
+          .set(newUser.toMap())
           .then((value) {
-        print("new user created");
+        print("New User Created!");
         Navigator.popUntil(context, (route) => route.isFirst);
-        Navigator.pushReplacement(context,
-            MaterialPageRoute(builder: (context) {
-          return completeprofile(
-            Usermodal: newuser,
-            fireabaseuser: credientals!.user!,
-          );
-        }));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) {
+            return completeprofile(
+                userModel: newUser, fireabaseuser: credential!.user!);
+          }),
+        );
       });
     }
   }
@@ -81,46 +88,41 @@ class _SignupState extends State<Signup> {
                     "Chat App",
                     style: TextStyle(
                         color: Theme.of(context).colorScheme.secondary,
-                        fontSize: 40,
+                        fontSize: 45,
                         fontWeight: FontWeight.bold),
                   ),
-                  TextField(
-                    controller: emailcontroler,
-                    decoration: InputDecoration(
-                      labelText: "Email Address",
-                    ),
-                  ),
                   SizedBox(
-                    height: 30,
+                    height: 10,
                   ),
                   TextField(
-                    controller: passwordcontroler,
-                    decoration: InputDecoration(
-                      labelText: "Password",
-                    ),
+                    controller: emailController,
+                    decoration: InputDecoration(labelText: "Email Address"),
                   ),
                   SizedBox(
-                    height: 30,
+                    height: 10,
                   ),
                   TextField(
-                    controller: cpasswordcontroler,
-                    decoration: InputDecoration(
-                      labelText: "Confirm Password",
-                    ),
+                    controller: passwordController,
+                    obscureText: true,
+                    decoration: InputDecoration(labelText: "Password"),
                   ),
                   SizedBox(
-                    height: 30,
+                    height: 10,
+                  ),
+                  TextField(
+                    controller: cPasswordController,
+                    obscureText: true,
+                    decoration: InputDecoration(labelText: "Confirm Password"),
+                  ),
+                  SizedBox(
+                    height: 20,
                   ),
                   CupertinoButton(
-                    child: Text("Signup"),
                     onPressed: () {
-                      // Navigator.push(context,
-                      //     MaterialPageRoute(builder: (context) {
-                      //   return completeprofile();
-                      // }));
-                      checkvalues();
+                      checkValues();
                     },
                     color: Theme.of(context).colorScheme.secondary,
+                    child: Text("Sign Up"),
                   ),
                 ],
               ),
@@ -129,20 +131,25 @@ class _SignupState extends State<Signup> {
         ),
       ),
       bottomNavigationBar: Container(
-          child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            "Already have an account?",
-            style: TextStyle(fontSize: 16),
-          ),
-          CupertinoButton(
-              child: Text("Login"),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              "Already have an account?",
+              style: TextStyle(fontSize: 16),
+            ),
+            CupertinoButton(
               onPressed: () {
                 Navigator.pop(context);
-              }),
-        ],
-      )),
+              },
+              child: Text(
+                "Log In",
+                style: TextStyle(fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

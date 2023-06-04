@@ -10,11 +10,11 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 
 class completeprofile extends StatefulWidget {
-  final usermodal Usermodal;
+  final UserModel userModel;
   final User fireabaseuser;
 
   const completeprofile(
-      {super.key, required this.Usermodal, required this.fireabaseuser});
+      {super.key, required this.userModel, required this.fireabaseuser});
 
   @override
   State<completeprofile> createState() => _completeprofileState();
@@ -90,7 +90,7 @@ class _completeprofileState extends State<completeprofile> {
   void uploadData() async {
     UploadTask uploadtask = FirebaseStorage.instance
         .ref("profile picture")
-        .child(widget.Usermodal.uid.toString())
+        .child(widget.userModel.uid.toString())
         .putFile(imageFile!);
 
     TaskSnapshot snapshot = await uploadtask;
@@ -98,18 +98,19 @@ class _completeprofileState extends State<completeprofile> {
     String? url = await snapshot.ref.getDownloadURL();
     String? fullname = fname.text.trim();
 
-    widget.Usermodal.fullname = fullname;
-    widget.Usermodal.profilepic = url;
+    widget.userModel.fullname = fullname;
+    widget.userModel.profilepic = url;
 
     await FirebaseFirestore.instance
         .collection("users")
-        .doc(widget.Usermodal.uid)
-        .set(widget.Usermodal.toMap())
+        .doc(widget.userModel.uid)
+        .set(widget.userModel.toMap())
         .then((value) {
       print("data uploaded");
-      Navigator.push(context, MaterialPageRoute(builder: (context) {
-        return homepage(
-            Usermodal: widget.Usermodal, firebaseuser: widget.fireabaseuser);
+      Navigator.popUntil(context, (route) => route.isFirst);
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) {
+        return HomePage(
+            userModel: widget.userModel, firebaseUser: widget.fireabaseuser);
       }));
     });
   }
